@@ -244,7 +244,7 @@
 
         // --- Audio Logic ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        let isMuted = false; // Start unmuted to play music by default
+        let isMuted = true; // Start muted to respect autoplay rules
         const bgMusic = document.getElementById('bg-music');
         
         function toggleMute() {
