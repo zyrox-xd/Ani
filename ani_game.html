@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Starlight Catcher | For Ani</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=DM+Mono:wght@300;400&family=Pinyon+Script&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ink:   #070b11;
+            --ink2:  #0c1220;
+            --blue:  #5b9bd5;
+            --bluel: #93c5f0;
+            --text:  #ddeaf8;
+            --muted: #557090;
+            --line:  rgba(91,155,213,0.15);
+            --glow:  rgba(91,155,213,0.3);
+            --danger: #f43f5e;
+            
+            /* Dark Theme Colors */
+            --surface: rgba(12, 18, 32, 0.6);
+            --surface-text: #ddeaf8;
+        }
+
+        body {
+            font-family: 'Cormorant Garamond', serif;
+            background: radial-gradient(circle at 50% 0%, var(--ink2) 0%, var(--ink) 80%);
+            color: var(--text);
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+            cursor: none;
+        }
+
+        h1, h2, .font-serif { font-family: 'Cormorant Garamond', serif; }
+        .font-script { font-family: 'Pinyon Script', cursive; }
+        .font-mono { font-family: 'DM Mono', monospace; }
+
+        #game-canvas {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10;
+        }
+        
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 20;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .interactive { pointer-events: auto; }
+
+        /* Custom Cursor */
+        #cur-dot {
+            position: fixed; z-index: 9999;
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--blue); pointer-events: none;
+            transform: translate(-50%, -50%);
+        }
+        #cur-ring {
+            position: fixed; z-index: 9998;
+            width: 32px; height: 32px; border-radius: 50%;
+            border: 1px solid rgba(91,155,213,0.5); pointer-events: none;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s, border-color 0.3s;
+        }
+        @media (pointer: coarse) {
+            body, * { cursor: auto !important; }
+            #cur-dot, #cur-ring { display: none !important; }
+        }
+
+        /* Dark Glass Panels */
+        .glass-panel {
+            background: var(--surface);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--line);
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 3rem 2.5rem;
+            text-align: center;
+            max-width: 90%;
+            width: 440px;
+            color: var(--surface-text);
+        }
+
+        .btn-primary {
+            background: transparent;
+            color: var(--blue);
+            padding: 14px 40px;
+            border-radius: 4px;
+            font-size: 1.1rem;
+            font-style: italic;
+            letter-spacing: 1px;
+            border: 1px solid var(--blue);
+            transition: all 0.4s ease;
+            cursor: pointer;
+            margin-top: 24px;
+            position: relative;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn-primary::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--blue); transform: scaleX(0); transform-origin: left;
+            transition: transform 0.4s cubic-bezier(0.22,1,0.36,1); z-index: -1;
+        }
+        .btn-primary:hover, .btn-primary:active {
+            color: var(--ink); border-color: var(--blue); box-shadow: 0 0 20px var(--glow);
+        }
+        .btn-primary:hover::before, .btn-primary:active::before { transform: scaleX(1); }
+
+        .mute-btn {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(7,11,17,0.7); backdrop-filter: blur(10px);
+            width: 44px; height: 44px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 50;
+            border: 1px solid var(--line); color: var(--muted);
+            transition: all 0.3s;
+        }
+        .mute-btn.on { color: var(--bluel); border-color: var(--blue); box-shadow: 0 0 15px var(--glow); }
+
+        .score-pill {
+            background: rgba(7,11,17,0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--line);
+            padding: 6px 20px;
+            border-radius: 30px;
+            display: inline-block;
+            margin-top: 12px;
+            font-family: 'DM Mono', monospace;
+            letter-spacing: 2px;
+            color: var(--bluel);
+        }
+
+        .shake { animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+            40%, 60% { transform: translate3d(6px, 0, 0); }
+        }
+
+        .hidden { display: none !important; }
+
+        /* Constellation SVG styles */
+        #const-path { stroke-dasharray: 400; stroke-dashoffset: 400; }
+        .star-node { transform-origin: center; }
+    </style>
+</head>
+<body>
+
+    <div id="cur-dot"></div>
+    <div id="cur-ring"></div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <button class="mute-btn interactive" onclick="toggleMute()" id="mute-btn">♪</button>
+
+    <div id="ui-layer">
+        <!-- INTRO SCREEN -->
+        <div id="intro-screen" class="glass-panel interactive">
+            <h1 class="text-6xl text-blue-300 mb-2 font-script drop-shadow-lg">Starlight</h1>
+            <p class="text-blue-200/70 mb-8 italic text-lg tracking-wide">Gather 15 falling stars to proceed.</p>
+            
+            <div class="flex justify-center gap-8 mb-8 text-sm font-mono text-blue-300/60 uppercase tracking-widest">
+                <div class="flex flex-col items-center">
+                    <span class="text-3xl mb-2">✨</span>
+                    <span>Catch Stars</span>
+                </div>
+                <div class="flex flex-col items-center">
+                    <span class="text-3xl mb-2 opacity-70">☄️</span>
+                    <span class="text-rose-400/80">Avoid Void</span>
+                </div>
+            </div>
+            <button class="btn-primary interactive" onclick="startGame()">Begin Journey</button>
+        </div>
+
+        <!-- HUD (Directly on canvas, kept light) -->
+        <div id="game-hud" class="absolute top-8 w-full text-center hidden pointer-events-none drop-shadow-md">
+            <h2 class="text-2xl text-blue-200 font-serif italic tracking-wider opacity-80">Guide the Light</h2>
+            <div class="score-pill">
+                <span id="score-text" class="text-blue-300 text-sm">0 / 15</span>
+            </div>
+        </div>
+
+        <!-- WIN SCREEN -->
+        <div id="win-screen" class="glass-panel hidden interactive" style="width: 500px;">
+            <div id="win-content-game">
+                <h1 class="text-5xl text-blue-300 mb-4 mt-4 font-serif italic">Stars Aligned</h1>
+                <p class="text-lg text-blue-200/60 mb-6 font-mono tracking-widest uppercase">Starlight Gathered: 15/15</p>
+                <div class="text-3xl animate-pulse mb-6">✨✨✨</div>
+            </div>
+
+            <div id="win-content-birthday" class="hidden flex flex-col items-center">
+                <div id="final-bouquet-container" class="w-full h-48 flex justify-center items-center mb-4 relative">
+                    <!-- Constellation SVG injected via JS -->
+                </div>
+                <h1 class="text-5xl text-blue-300 mb-2 font-serif italic">Constellation Complete</h1>
+                <h2 class="text-sm text-blue-200/50 mb-6 font-mono uppercase tracking-[0.3em] font-semibold">For Aniqa</h2>
+                <p class="text-lg text-blue-100/80 italic mb-8 leading-relaxed px-4">
+                    "You've gathered the light.<br>Now, let's see what it spells out for you."
+                </p>
+                <button class="btn-primary" onclick="window.location.href='index.html'">Read Your Letter</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Background Music -->
+    <audio id="bg-music" loop>
+        <source src="poison tree - slowed + reverb.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // --- Cursor Logic ---
+        const dot = document.getElementById('cur-dot');
+        const ring = document.getElementById('cur-ring');
+        let mx=innerWidth/2, my=innerHeight/2, rx=mx, ry=my;
+        
+        document.addEventListener('mousemove', e => {
+            mx = e.clientX; my = e.clientY;
+            if(dot) { dot.style.left = mx+'px'; dot.style.top = my+'px'; }
+        });
+        (function loop(){
+            rx += (mx - rx) * 0.15; ry += (my - ry) * 0.15;
+            if(ring) { ring.style.left = rx+'px'; ring.style.top = ry+'px'; }
+            requestAnimationFrame(loop);
+        })();
+
+        document.querySelectorAll('.interactive').forEach(el => {
+            el.addEventListener('mouseenter', () => { if(ring) { ring.style.width='50px'; ring.style.height='50px'; ring.style.borderColor='#93c5f0'; }});
+            el.addEventListener('mouseleave', () => { if(ring) { ring.style.width='32px'; ring.style.height='32px'; ring.style.borderColor='rgba(91,155,213,0.5)'; }});
+        });
+
+        // --- Audio Logic ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        let isMuted = false; // Start unmuted to play music by default
+        const bgMusic = document.getElementById('bg-music');
+        
+        function toggleMute() {
+            isMuted = !isMuted;
+            const btn = document.getElementById('mute-btn');
+            if(isMuted) {
+                bgMusic.pause();
+                btn.classList.remove('on'); btn.innerText = '♪';
+            } else {
+                bgMusic.play().catch(()=>{});
+                btn.classList.add('on'); btn.innerText = '♫';
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            if (isMuted) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            if (type === 'catch') {
+                // High delicate chime
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800 + Math.random() * 400, now);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                osc.start(now); osc.stop(now + 0.3);
+            } else if (type === 'meteor') {
+                // Low dull thud
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(100, now);
+                osc.frequency.exponentialRampToValueAtTime(30, now + 0.2);
+                gain.gain.setValueAtTime(0.1, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now); osc.stop(now + 0.2);
+            } else if (type === 'reveal') {
+                // Magical ascending chord
+                [400, 500, 600, 800].forEach((freq, i) => {
+                    const hOsc = audioCtx.createOscillator();
+                    const hGain = audioCtx.createGain();
+                    hOsc.type = 'sine';
+                    hOsc.connect(hGain); hGain.connect(audioCtx.destination);
+                    hOsc.frequency.setValueAtTime(freq, now + i*0.1);
+                    hGain.gain.setValueAtTime(0, now);
+                    hGain.gain.setTargetAtTime(0.08, now + i*0.1, 0.1);
+                    hGain.gain.exponentialRampToValueAtTime(0.001, now + i*0.1 + 1.5);
+                    hOsc.start(now + i*0.1); hOsc.stop(now + i*0.1 + 1.5);
+                });
+            }
+        }
+
+        // --- Game Engine ---
+        const TARGET_SCORE = 15;
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, gameActive = false, score = 0, basketX = 0;
+        let objects = [], particles = [], bgStars = [];
+        const basketWidth = 100;
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            basketX = width / 2;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Background Starfield for canvas
+        for(let i=0; i<50; i++) {
+            bgStars.push({ x: Math.random()*width, y: Math.random()*height, size: Math.random()*1.5, speed: Math.random()*0.5 + 0.1 });
+        }
+
+        window.addEventListener('mousemove', (e) => { if(gameActive) basketX = e.clientX; });
+        window.addEventListener('touchmove', (e) => { if(gameActive) basketX = e.touches[0].clientX; }, {passive: true});
+
+        // Drawing Functions
+        function drawSparkleStar(x, y, size, rot) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rot);
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#5b9bd5';
+            ctx.fillStyle = '#ddeaf8';
+            ctx.beginPath();
+            for(let i=0; i<4; i++) {
+                ctx.rotate(Math.PI/2);
+                ctx.lineTo(0, -size);
+                ctx.quadraticCurveTo(size*0.15, -size*0.15, size, 0);
+            }
+            ctx.fill();
+            // Core
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); ctx.arc(0,0, size*0.25, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
+        }
+
+        function drawVoidShard(x, y, size, rot) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(rot);
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = 'rgba(244, 63, 94, 0.5)';
+            ctx.fillStyle = '#0c1220';
+            ctx.strokeStyle = '#f43f5e';
+            ctx.lineWidth = 1.5;
+            
+            ctx.beginPath();
+            ctx.moveTo(0, -size);
+            ctx.lineTo(size*0.6, -size*0.4);
+            ctx.lineTo(size, size*0.2);
+            ctx.lineTo(size*0.3, size);
+            ctx.lineTo(-size*0.7, size*0.5);
+            ctx.lineTo(-size*0.8, -size*0.2);
+            ctx.closePath();
+            ctx.fill(); ctx.stroke();
+            
+            // Inner fracture line
+            ctx.beginPath(); ctx.moveTo(-size*0.3, -size*0.3); ctx.lineTo(size*0.3, size*0.4); ctx.stroke();
+            ctx.restore();
+        }
+
+        class GameObject {
+            constructor() {
+                this.x = Math.random() * (width - 60) + 30;
+                this.y = -60;
+                this.type = Math.random() < 0.20 ? 'meteor' : 'star';
+                this.size = this.type === 'star' ? (12 + Math.random()*8) : (15 + Math.random()*10);
+                this.speed = (this.type === 'star' ? 2.5 : 3.5) + Math.random() * 2;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotSpeed = (Math.random() - 0.5) * 0.05;
+                this.oscillation = Math.random() * Math.PI * 2;
+            }
+            update() {
+                this.y += this.speed;
+                this.rotation += this.rotSpeed;
+                const sway = this.type === 'star' ? 1.5 : 0.5;
+                this.x += Math.sin(this.y * 0.03 + this.oscillation) * sway;
+                
+                // Trail for meteor
+                if (this.type === 'meteor' && Math.random() < 0.3) {
+                    particles.push(new Particle(this.x, this.y - this.size, '#f43f5e', true));
+                }
+            }
+            draw() {
+                if (this.type === 'star') drawSparkleStar(this.x, this.y, this.size, this.rotation);
+                else drawVoidShard(this.x, this.y, this.size, this.rotation);
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, isTrail = false) {
+                this.x = x; this.y = y; 
+                const force = isTrail ? 2 : 6;
+                this.vx = (Math.random() - 0.5) * force; 
+                this.vy = (Math.random() - 0.5) * force + (isTrail ? -2 : 0);
+                this.life = 1; this.color = color; 
+                this.decay = isTrail ? (0.05 + Math.random()*0.05) : (0.02 + Math.random()*0.03);
+                this.size = Math.random() * 2.5 + 1;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; if(this.vx > 0) this.vx*=0.95; }
+            draw() { 
+                ctx.globalAlpha = Math.max(0, this.life); 
+                ctx.fillStyle = this.color; 
+                ctx.shadowBlur = 5; ctx.shadowColor = this.color;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); 
+                ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+            }
+        }
+
+        function gameLoop() {
+            if (!gameActive) return;
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw slowly moving bg stars
+            ctx.fillStyle = 'rgba(147, 197, 240, 0.4)';
+            bgStars.forEach(s => {
+                s.y += s.speed; if(s.y > height) { s.y = 0; s.x = Math.random()*width; }
+                ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI*2); ctx.fill();
+            });
+
+            // Spawn objects
+            if (Math.random() < 0.035 + (score * 0.001)) objects.push(new GameObject());
+
+            const bX = Math.max(basketWidth/2, Math.min(width - basketWidth/2, basketX));
+            const bY = height - 80;
+
+            // Update & Draw Objects
+            for (let i = objects.length - 1; i >= 0; i--) {
+                let obj = objects[i]; obj.update(); obj.draw();
+                
+                // Collision Detection
+                const dy = bY - obj.y, dx = bX - obj.x, dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < basketWidth/2 && dy > -20 && dy < 40) {
+                    if (obj.type === 'star') {
+                        playSound('catch');
+                        for(let p=0; p<8; p++) particles.push(new Particle(obj.x, obj.y, '#93c5f0'));
+                        score++; updateScore();
+                    } else {
+                        playSound('meteor');
+                        for(let p=0; p<10; p++) particles.push(new Particle(obj.x, obj.y, '#f43f5e'));
+                        document.body.classList.add('shake'); setTimeout(() => document.body.classList.remove('shake'), 400);
+                        score = Math.max(0, score - 2); updateScore();
+                    }
+                    objects.splice(i, 1);
+                } else if (obj.y > height + 50) {
+                    objects.splice(i, 1);
+                }
+            }
+
+            // Draw Moon/Catcher
+            ctx.save();
+            ctx.shadowBlur = 20; ctx.shadowColor = 'rgba(91,155,213,0.6)';
+            ctx.strokeStyle = 'rgba(147, 197, 240, 0.8)'; ctx.lineWidth = 3;
+            ctx.fillStyle = 'rgba(7, 11, 17, 0.8)';
+            
+            // Crescent shape
+            ctx.beginPath();
+            ctx.arc(bX, bY, basketWidth/2, 0, Math.PI, false);
+            ctx.quadraticCurveTo(bX, bY + 20, bX - basketWidth/2, bY);
+            ctx.fill(); ctx.stroke();
+            
+            // Inner glowing core
+            ctx.beginPath(); ctx.arc(bX, bY+5, basketWidth/4, 0, Math.PI);
+            ctx.fillStyle = 'rgba(91,155,213,0.3)'; ctx.fill();
+            ctx.restore();
+
+            // Particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update(); particles[i].draw();
+                if(particles[i].life <= 0) particles.splice(i, 1);
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateScore() {
+            const el = document.getElementById('score-text');
+            el.innerText = `${score} / ${TARGET_SCORE}`;
+            gsap.fromTo(el, {scale: 1.4, color: '#ffffff'}, {scale: 1, color: '#93c5f0', duration: 0.3});
+            if (score >= TARGET_SCORE) endGame();
+        }
+
+        function startGame() {
+            if(!isMuted && audioCtx.state === 'suspended') audioCtx.resume();
+            gsap.to('#intro-screen', { opacity: 0, y: -20, scale: 0.95, duration: 0.5, ease: "power2.in", onComplete: () => {
+                document.getElementById('intro-screen').style.display = 'none';
+                document.getElementById('game-hud').classList.remove('hidden');
+                gameActive = true; score = 0; objects = []; particles = [];
+                updateScore(); gameLoop();
+            }});
+        }
+
+        function endGame() {
+            gameActive = false;
+            ctx.clearRect(0, 0, width, height); // Clear game elements
+            document.getElementById('game-hud').style.display = 'none';
+            const winScreen = document.getElementById('win-screen');
+            winScreen.classList.remove('hidden');
+            
+            gsap.fromTo(winScreen, { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1, ease: "power3.out" });
+            
+            setTimeout(() => {
+                const gameContent = document.getElementById('win-content-game');
+                gsap.to(gameContent, { opacity: 0, duration: 0.5, onComplete: () => {
+                    gameContent.style.display = 'none';
+                    const birthdayContent = document.getElementById('win-content-birthday');
+                    birthdayContent.classList.remove('hidden');
+                    playSound('reveal');
+                    gsap.fromTo(birthdayContent, { opacity: 0, scale: 0.95 }, { opacity: 1, scale: 1, duration: 1.5, ease: "power2.out" });
+                    drawFinalConstellation();
+                }});
+            }, 2000);
+        }
+
+        function drawFinalConstellation() {
+            const container = document.getElementById('final-bouquet-container');
+            // Draw an SVG Heart Constellation
+            container.innerHTML = `
+                <svg width="240" height="200" viewBox="0 0 100 100" class="overflow-visible drop-shadow-[0_0_15px_rgba(91,155,213,0.5)]">
+                    <path id="const-path" d="M 50 85 L 25 55 C 5 35, 30 10, 50 35 C 70 10, 95 35, 75 55 Z" fill="none" stroke="rgba(147,197,240,0.8)" stroke-width="1.5" stroke-dasharray="300" stroke-dashoffset="300"/>
+                    <g id="star-nodes">
+                        <circle cx="50" cy="85" r="2.5" fill="#ffffff" class="star-node"/>
+                        <circle cx="25" cy="55" r="2" fill="#93c5f0" class="star-node"/>
+                        <circle cx="15" cy="30" r="1.5" fill="#ffffff" class="star-node"/>
+                        <circle cx="35" cy="20" r="2" fill="#93c5f0" class="star-node"/>
+                        <circle cx="50" cy="35" r="2.5" fill="#ffffff" class="star-node"/>
+                        <circle cx="65" cy="20" r="2" fill="#93c5f0" class="star-node"/>
+                        <circle cx="85" cy="30" r="1.5" fill="#ffffff" class="star-node"/>
+                        <circle cx="75" cy="55" r="2" fill="#93c5f0" class="star-node"/>
+                    </g>
+                </svg>
+            `;
+            
+            // Animate path drawing
+            gsap.to('#const-path', { strokeDashoffset: 0, duration: 2.5, ease: "power2.inOut" });
+            
+            // Animate stars popping in
+            gsap.from('.star-node', { 
+                scale: 0, opacity: 0, 
+                stagger: { each: 0.1, from: "edges" }, 
+                duration: 1, ease: "back.out(2)", delay: 0.5 
+            });
+
+            // Floating container
+            gsap.to(container, { y: -10, duration: 3, repeat: -1, yoyo: true, ease: "sine.inOut" });
+
+            // Magical Confetti
+            const end = Date.now() + 3000;
+            const colors = ['#5b9bd5', '#93c5f0', '#ffffff', '#e8f3fd'];
+            (function frame() {
+                confetti({ particleCount: 3, angle: 60, spread: 60, origin: { x: 0 }, colors: colors, zIndex: 100 });
+                confetti({ particleCount: 3, angle: 120, spread: 60, origin: { x: 1 }, colors: colors, zIndex: 100 });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+    </script>
+</body>
+</html>
